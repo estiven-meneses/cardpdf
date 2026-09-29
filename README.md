@@ -98,7 +98,7 @@ npm run dev      # http://localhost:5173
 ```
 
 Para producción, `npm run build` genera `dist/`. Cada push a `main` despliega
-solo en **Netlify** (`icardify.netlify.app`, config en `netlify.toml`) y en
+solo en **Netlify** (`cardpdf.netlify.app`, config en `netlify.toml`) y en
 **Vercel** (config en `vercel.json`). Los dos compilan; ninguno sirve la raíz
 del repo.
 

@@ -59,7 +59,7 @@ Si tu tarea es de una zona, no “aprovechas” para rehacer la otra.
 - **Vite + TypeScript**, con React para las superficies nuevas. El lienzo y el
   recorte siguen en `src/legacy/`, sin tipar todavía.
 - Deploy: **dos hostings a la vez**, ambos desde `main` y ambos compilando.
-  - Netlify (`icardify.netlify.app`) es el que esta vivo hoy. Config en
+  - Netlify (`cardpdf.netlify.app`) es el que esta vivo hoy. Config en
     `netlify.toml`, funcion en `netlify/functions/logs.js`.
   - Vercel es el destino. Config en `vercel.json`, funcion en `api/logs.js`.
   - La logica de ambos endpoints vive en `shared/log-entry.js`: se toca ahi,
