@@ -1,4 +1,4 @@
-# Netlify sirve icardify.netlify.app y despliega solo en cada push a main.
+# Netlify sirve cardpdf.netlify.app y despliega solo en cada push a main.
 # Sin este archivo publicaba la raiz del repo tal cual, que funcionaba cuando
 # la app era index.html + script.js. Desde la migracion a Vite hay que
 # compilar: si no, el navegador recibe /src/main.tsx como octet-stream, lo
