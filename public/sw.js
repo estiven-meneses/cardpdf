@@ -1,4 +1,4 @@
-const CACHE = 'cardpdf-v4';
+const CACHE = 'cardpdf-v5';
 const PRECACHE = [
     './',
     './index.html',
