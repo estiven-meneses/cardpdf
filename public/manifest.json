@@ -5,18 +5,17 @@
   "description": "Maqueta y exporta carnets CR80 a PDF, JPG y PNG.",
   "lang": "es",
   "dir": "ltr",
-  "start_url": "./",
-  "scope": "./",
+  "start_url": "/",
+  "scope": "/",
   "display": "standalone",
-  "display_override": ["standalone", "minimal-ui"],
-  "orientation": "any",
+  "orientation": "portrait-primary",
   "background_color": "#f1f5f9",
   "theme_color": "#f1f5f9",
-  "handle_links": "preferred",
-  "launch_handler": {
-    "client_mode": ["navigate-existing", "auto"]
-  },
-  "categories": ["productivity", "utilities", "photo"],
+  "categories": [
+    "productivity",
+    "utilities",
+    "photo"
+  ],
   "icons": [
     {
       "src": "icons/icon-192.png",

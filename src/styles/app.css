@@ -31,7 +31,9 @@
         }
         @media screen and (max-width: 1023px) {
             :root {
-                --ctl-h: 32px;
+                /* 44pt: el minimo tactil de Apple. Con 32px los botones de
+                   arriba casi no se atinaban con el dedo. */
+                --ctl-h: 44px;
                 --ctl-pad: 2px;
                 --topbar-pad: 6px;
             }
@@ -665,13 +667,14 @@
                 padding-left: 0.4rem;
                 padding-right: 0.4rem;
             }
+            /* Misma medida tactil que la fila de arriba (antes ~30px). */
             #canvas-toolbar button {
-                width: 1.85rem;
-                height: 1.85rem;
+                width: var(--ctl-h);
+                height: var(--ctl-h);
             }
             #zoom-level-label {
-                width: 2rem;
-                font-size: 10px;
+                width: 2.75rem;
+                font-size: 12px;
             }
             #canvas-footer {
                 left: 10px;
