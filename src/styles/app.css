@@ -437,32 +437,22 @@
             border-radius: 0;
             box-shadow: none;
         }
-        /* Movil: la misma estructura que nexusFlow (src/app/dashboard/layout.tsx):
-           "En movil el documento conserva el scroll nativo para que Safari pueda
-           ajustar sus barras. En escritorio el contenido sigue desplazandose
-           dentro del panel."
-           - html y body como su globals.css: height 100%, sin overflow hidden ni
-             100dvh. Antes aqui el documento estaba bloqueado (100dvh, overflow
-             hidden y hasta body fixed) y en la PWA de iOS la barra quedaba ~60pt
-             por encima del borde.
-           - La barra inferior fixed/bottom 0, como su BottomNav, y el contenido
-             le deja sitio con padding-bottom, como su <main>.
-           - Ajustes y Salida hacen scroll con la pagina, no dentro del panel.
-           - La hoja no cambia: su visor es absolute dentro de un panel flex-1 y
-             saca el alto del flex, no del scroll del documento. */
+        /* La PWA ocupa el viewport real. La barra se ancla a su borde inferior
+           y cada panel desplaza su contenido dentro del hueco restante. */
         @media screen and (max-width: 1023px) {
             html {
                 height: 100%;
                 max-height: none;
-                overflow: visible !important;
+                overflow: hidden !important;
                 overscroll-behavior: none;
             }
             body.app-shell {
-                position: relative;
+                position: fixed;
+                inset: 0;
                 height: auto;
                 max-height: none;
-                min-height: 100%;
-                overflow: visible !important;
+                min-height: 0;
+                overflow: hidden !important;
             }
             #app-tabbar {
                 position: fixed;
@@ -473,12 +463,14 @@
             }
             #app-main {
                 padding-bottom: var(--tabbar-total);
+                min-height: 0;
             }
             body.app-shell #panel-sidebar,
             body.app-shell #panel-output {
-                flex: 1 0 auto;
-                min-height: auto;
-                overflow: visible;
+                flex: 1 1 auto;
+                min-height: 0;
+                overflow-y: auto;
+                overscroll-behavior: contain;
             }
             /* Con scroll de pagina, sticky bottom 0 quedaria detras de la barra. */
             body.app-shell #panel-export .export-cta {
