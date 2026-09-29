@@ -483,9 +483,9 @@ function setMobileView(view) {
     if (DOM.panelControls) DOM.panelControls.style.display = showControls ? 'flex' : 'none';
     if (DOM.panelOutput) DOM.panelOutput.style.display = showExport ? 'flex' : 'none';
     if (DOM.panelExport) DOM.panelExport.style.display = showExport ? 'flex' : 'none';
-    // El scroll ahora es de la pagina (como nexusFlow): cada pestana empieza
-    // arriba, no donde se quedo la anterior.
-    window.scrollTo(0, 0);
+    // Cada panel tiene su propio scroll dentro del shell fijo.
+    const activePanel = showControls ? DOM.panelSidebar : showExport ? DOM.panelOutput : null;
+    if (activePanel) activePanel.scrollTop = 0;
 
     applyMobileTabStyles(view);
 
