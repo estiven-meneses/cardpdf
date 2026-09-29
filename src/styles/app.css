@@ -477,6 +477,36 @@
                 bottom: var(--tabbar-total);
             }
         }
+        /* En iOS standalone, 100dvh/100% puede medir la pantalla menos la
+           barra de estado. 100vh conserva el alto fisico desde el arranque;
+           la barra se ancla al body de ese alto, sin depender de fixed. */
+        @media screen and (max-width: 1023px) {
+            html.ios-standalone {
+                height: 100vh;
+                overflow: visible !important;
+            }
+            html.ios-standalone body.app-shell {
+                position: relative;
+                inset: auto;
+                height: 100vh;
+            }
+            html.ios-standalone #app-tabbar {
+                position: absolute;
+            }
+            html.ios-standalone #canvas-quick-bar {
+                position: absolute !important;
+                bottom: 0;
+            }
+            html.ios-standalone #banner-scan-dorso,
+            html.ios-standalone #toast-container {
+                position: absolute;
+            }
+            html.ios-standalone #panel-canvas.canvas-fullscreen {
+                position: absolute !important;
+                height: auto !important;
+                max-height: none !important;
+            }
+        }
         #app-utils {
             display: none;
         }
