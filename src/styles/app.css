@@ -437,19 +437,20 @@
             border-radius: 0;
             box-shadow: none;
         }
-        /* Movil: la barra de abajo se ancla al borde real de la pantalla, como
-           en nexusFlow (BottomNav: fixed, bottom 0). Antes era el ultimo hijo
-           de un body de 100dvh y quedaba donde terminara ese alto calculado.
-           En la PWA de iOS (pantalla completa, viewport-fit=cover, barra de
-           estado translucida) ese alto no siempre coincide con el fisico, y lo
-           que sobraba quedaba debajo de la barra: "queda muy arriba".
-           Con fixed, la posicion ya no depende de ningun calculo de alto. */
+        /* Movil: la misma estructura que nexusFlow (src/app/dashboard/layout.tsx):
+           "En movil el documento conserva el scroll nativo para que Safari pueda
+           ajustar sus barras. En escritorio el contenido sigue desplazandose
+           dentro del panel."
+           - html y body como su globals.css: height 100%, sin overflow hidden ni
+             100dvh. Antes aqui el documento estaba bloqueado (100dvh, overflow
+             hidden y hasta body fixed) y en la PWA de iOS la barra quedaba ~60pt
+             por encima del borde.
+           - La barra inferior fixed/bottom 0, como su BottomNav, y el contenido
+             le deja sitio con padding-bottom, como su <main>.
+           - Ajustes y Salida hacen scroll con la pagina, no dentro del panel.
+           - La hoja no cambia: su visor es absolute dentro de un panel flex-1 y
+             saca el alto del flex, no del scroll del documento. */
         @media screen and (max-width: 1023px) {
-            /* La raiz, igual que nexusFlow: html { height: 100% } y nada mas.
-               La regla general la recorta a max-height 100dvh con overflow
-               hidden; en la PWA de iOS 100dvh puede salir mas corto que la
-               pantalla (justo el alto de la barra de estado) y lo de debajo
-               quedaba fuera: la franja vacia bajo la barra inferior. */
             html {
                 height: 100%;
                 max-height: none;
@@ -457,10 +458,11 @@
                 overscroll-behavior: none;
             }
             body.app-shell {
-                position: fixed;
-                inset: 0;
+                position: relative;
                 height: auto;
                 max-height: none;
+                min-height: 100%;
+                overflow: visible !important;
             }
             #app-tabbar {
                 position: fixed;
@@ -469,10 +471,18 @@
                 bottom: 0;
                 z-index: 30;
             }
-            /* La barra ya no ocupa sitio en el flujo: el contenido se lo deja
-               libre, igual que el pb-[safe-area + 5rem] de nexusFlow. */
             #app-main {
                 padding-bottom: var(--tabbar-total);
+            }
+            body.app-shell #panel-sidebar,
+            body.app-shell #panel-output {
+                flex: 1 0 auto;
+                min-height: auto;
+                overflow: visible;
+            }
+            /* Con scroll de pagina, sticky bottom 0 quedaria detras de la barra. */
+            body.app-shell #panel-export .export-cta {
+                bottom: var(--tabbar-total);
             }
         }
         #app-utils {
