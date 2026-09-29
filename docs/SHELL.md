@@ -16,14 +16,13 @@ No metas Salida dentro de Ajustes. No metas Ajustes dentro de la Hoja. Un botón
 
 - Cero encabezado de marca. Cero chrome de sitio web.
 - Estructura: lienzo a pantalla + tab bar inferior `Hoja | Ajustes | Salida`.
-- PWA en iOS: cabecera y manifest calcados de City Service, que en el mismo
-  iPhone llega al borde. **No vuelvas a poner
-  `<meta name="apple-mobile-web-app-capable">`**: abre la app en el modo "web
-  clip" antiguo, iOS le da a la vista el alto de pantalla menos la barra de
-  estado y queda una franja vacia bajo la barra inferior. Eso lo decide iOS al
-  abrir la app; ningun CSS lo corrige. Basta `mobile-web-app-capable` + el
-  manifest con `display: standalone`. Tras tocar cabecera o manifest hay que
-  borrar la app de la pantalla de inicio y volver a agregarla.
+- PWA en iOS: conserva `apple-mobile-web-app-capable=yes` junto con
+  `apple-mobile-web-app-status-bar-style=black-translucent`, como en Nexus Flow
+  y clon-raindrop. Apple indica que el estilo de barra de estado solo surte
+  efecto si se activa primero el modo de aplicación con esa metaetiqueta.
+  `viewport-fit=cover` y el padding de safe area completan el diseño. Tras
+  cambiar la cabecera hay que borrar la app de la pantalla de inicio y volver
+  a agregarla para que iOS actualice su configuración de arranque.
 - Controles tactiles en movil: minimo 44pt (`--ctl-h`), como pide Apple.
 - La tab bar es `position: fixed; bottom: 0` y el `body` es `fixed; inset: 0`,
   como en nexusFlow. No la devuelvas al flujo ni midas la app con `100dvh`: en
