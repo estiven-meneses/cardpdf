@@ -16,7 +16,9 @@
             --tabbar-tap: 56px;
             --tabbar-pad-top: 6px;
             --tabbar-pad-bottom: max(8px, var(--safe-area-bottom));
-            --tabbar-total: calc(var(--tabbar-tap) + var(--tabbar-pad-top) + var(--tabbar-pad-bottom));
+            /* +1px: el borde superior de la barra. Sin el, lo que se apoya en
+               --tabbar-total (barra rapida, toasts) pisaba esa linea. */
+            --tabbar-total: calc(var(--tabbar-tap) + var(--tabbar-pad-top) + var(--tabbar-pad-bottom) + 1px);
 
             /* Alto comun de los controles de arriba (modo, idioma, tema/reset).
                Antes cada grupo traia el suyo -38px, 48px y 36px- y por eso no
@@ -432,6 +434,33 @@
             border-bottom: 0;
             border-radius: 0;
             box-shadow: none;
+        }
+        /* Movil: la barra de abajo se ancla al borde real de la pantalla, como
+           en nexusFlow (BottomNav: fixed, bottom 0). Antes era el ultimo hijo
+           de un body de 100dvh y quedaba donde terminara ese alto calculado.
+           En la PWA de iOS (pantalla completa, viewport-fit=cover, barra de
+           estado translucida) ese alto no siempre coincide con el fisico, y lo
+           que sobraba quedaba debajo de la barra: "queda muy arriba".
+           Con fixed, la posicion ya no depende de ningun calculo de alto. */
+        @media screen and (max-width: 1023px) {
+            body.app-shell {
+                position: fixed;
+                inset: 0;
+                height: auto;
+                max-height: none;
+            }
+            #app-tabbar {
+                position: fixed;
+                left: 0;
+                right: 0;
+                bottom: 0;
+                z-index: 30;
+            }
+            /* La barra ya no ocupa sitio en el flujo: el contenido se lo deja
+               libre, igual que el pb-[safe-area + 5rem] de nexusFlow. */
+            #app-main {
+                padding-bottom: var(--tabbar-total);
+            }
         }
         #app-utils {
             display: none;
