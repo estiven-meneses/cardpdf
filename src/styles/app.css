@@ -443,6 +443,17 @@
            que sobraba quedaba debajo de la barra: "queda muy arriba".
            Con fixed, la posicion ya no depende de ningun calculo de alto. */
         @media screen and (max-width: 1023px) {
+            /* La raiz, igual que nexusFlow: html { height: 100% } y nada mas.
+               La regla general la recorta a max-height 100dvh con overflow
+               hidden; en la PWA de iOS 100dvh puede salir mas corto que la
+               pantalla (justo el alto de la barra de estado) y lo de debajo
+               quedaba fuera: la franja vacia bajo la barra inferior. */
+            html {
+                height: 100%;
+                max-height: none;
+                overflow: visible !important;
+                overscroll-behavior: none;
+            }
             body.app-shell {
                 position: fixed;
                 inset: 0;
