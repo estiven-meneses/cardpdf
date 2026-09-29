@@ -1818,7 +1818,15 @@ function syncControlsFromActiveCard() {
         } else {
             DOM.canvasQuickBar.classList.add('hidden');
         }
+        const quickBarWasOpen = document.body.classList.contains('quick-bar-open');
         document.body.classList.toggle('quick-bar-open', barOpen && isMobile);
+        // La clase cambia el hueco de la hoja (reserva sitio para la barra).
+        // Sin recalcular, la hoja se quedaba con el tamano del estado anterior:
+        // p. ej. chica tras aplicar un recorte, cuando la barra ya se cerro.
+        if (quickBarWasOpen !== (barOpen && isMobile)) {
+            resizeCanvasViewport();
+            scheduleRender();
+        }
     }
 
     updateDefaultConfigBadge();
@@ -2408,18 +2416,54 @@ function resizeCanvasViewport() {
 
     const toolbar = document.getElementById('canvas-toolbar');
     const footer = document.getElementById('canvas-footer');
+
     const toolbarH = toolbar ? Math.ceil(toolbar.getBoundingClientRect().height) : (isMobile ? 40 : 44);
     const footerVisible = footer && getComputedStyle(footer).display !== 'none';
     const footerH = footerVisible ? Math.ceil(footer.getBoundingClientRect().height) : (isMobile ? 40 : 36);
-    const appUtils = document.getElementById('app-utils');
-    const appUtilsH = (isMobile && appUtils && getComputedStyle(appUtils).display !== 'none')
-        ? Math.ceil(appUtils.getBoundingClientRect().height) : 0;
-    const safeTop = isMobile ? 12 : 0;
-    const sheetPad = (isMobile && STATE.selectedCardId) ? 72 : 0;
     const paddingX = isMobile ? 20 : 28;
-    const paddingY = toolbarH + footerH + appUtilsH + (isMobile ? 36 : 32) + safeTop + sheetPad;
-    const availWidth = Math.max(80, cWidth - paddingX);
-    const availHeight = Math.max(100, cHeight - paddingY);
+    const paddingY = toolbarH + footerH + (isMobile ? 36 : 32);
+    let availWidth = Math.max(80, cWidth - paddingX);
+    let availHeight = Math.max(100, cHeight - paddingY);
+
+    // Movil: se mide el hueco real en vez de restar alturas a ojo.
+    // La barra rapida entra sola en la medida: reserva su sitio por CSS
+    // (body.quick-bar-open), y syncControlsFromActiveCard vuelve a llamar aqui
+    // cada vez que esa clase cambia.
+    // Antes se restaban la barra de arriba y 12px de "area segura", que ya
+    // estan fuera del contenedor, y 72px de barra rapida aunque no estuviera
+    // abierta. La hoja quedaba en el 40-60% del hueco en un iPhone chico, y
+    // el zoom de arranque al 85% lo tapaba solo para un tamano de pantalla.
+    const box = measureEl.getBoundingClientRect();
+    if (isMobile && box.height > 50) {
+        const stage = document.getElementById('viewport-stage');
+        const cs = stage ? getComputedStyle(stage) : null;
+        const boxTop = box.top + (cs ? parseFloat(cs.paddingTop) || 0 : 0);
+        const boxBottom = box.bottom - (cs ? parseFloat(cs.paddingBottom) || 0 : 0);
+
+        let topLimit = boxTop;
+        let bottomLimit = boxBottom;
+        if (toolbar && getComputedStyle(toolbar).display !== 'none') {
+            topLimit = Math.max(topLimit, toolbar.getBoundingClientRect().bottom);
+        }
+        if (footerVisible) {
+            bottomLimit = Math.min(bottomLimit, footer.getBoundingClientRect().top);
+        }
+        // La reserva de CSS para la barra rapida es fija (132px) pero la barra
+        // mide lo que midan sus botones: se usa su borde real.
+        const quickBar = DOM.canvasQuickBar;
+        if (quickBar && document.body.classList.contains('quick-bar-open')
+            && getComputedStyle(quickBar).display !== 'none') {
+            bottomLimit = Math.min(bottomLimit, quickBar.getBoundingClientRect().top);
+        }
+
+        // La hoja va centrada en la caja del stage: cabe lo que permita el
+        // lado mas estrecho respecto al centro, no la suma de los dos.
+        const center = (boxTop + boxBottom) / 2;
+        const halfFree = Math.min(center - topLimit, bottomLimit - center);
+        const margin = 12;
+        availWidth = Math.max(80, cWidth - 2 * margin);
+        availHeight = Math.max(100, 2 * halfFree - 2 * margin);
+    }
 
     const sheetAspect = STATE.paper.heightMm / STATE.paper.widthMm;
 
@@ -3390,7 +3434,10 @@ function toggleSnap() {
 }
 
 function defaultSheetZoom() {
-    return window.innerWidth < 1024 ? 0.85 : 1.0;
+    // 1.0 ya es "la hoja entera en el hueco disponible" (resizeCanvasViewport).
+    // Hubo un 0.85 fijo en movil porque ese calculo sobraba espacio; al medir
+    // el hueco real, 1.0 encaja en cualquier pantalla y el 85% solo la achica.
+    return 1.0;
 }
 
 function updateZoomLabel() {
