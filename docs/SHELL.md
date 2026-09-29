@@ -24,10 +24,11 @@ No metas Salida dentro de Ajustes. No metas Ajustes dentro de la Hoja. Un botón
   cambiar la cabecera hay que borrar la app de la pantalla de inicio y volver
   a agregarla para que iOS actualice su configuración de arranque.
 - Controles tactiles en movil: minimo 44pt (`--ctl-h`), como pide Apple.
-- La tab bar es `position: fixed; bottom: 0` y el `body` es `fixed; inset: 0`,
-  como en nexusFlow. No la devuelvas al flujo ni midas la app con `100dvh`: en
-  la PWA de iOS ese alto no siempre es el de la pantalla y la barra quedaba
-  flotando por encima del borde. Lo que se apoye en ella usa `--tabbar-total`.
+- En Safari, la tab bar usa `position: fixed; bottom: 0`. En la PWA instalada
+  de iOS, `100dvh` y `height: 100%` pueden perder el alto de la barra de estado:
+  `html.ios-standalone` y `body` usan `100vh`, y la tab bar se ancla al `body`
+  con `position: absolute; bottom: 0`. El modo se detecta al iniciar con
+  `navigator.standalone`. Lo que se apoye en la barra usa `--tabbar-total`.
 - La hoja entra con zoom 1.0, que es "entera en el hueco libre": el hueco se
   mide con las posiciones reales de la toolbar, la píldora de estado y la barra
   rápida (`resizeCanvasViewport`). No pongas un zoom de arranque fijo tipo 85%:
