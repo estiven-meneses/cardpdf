@@ -80,7 +80,7 @@ STATE.zoom = defaultSheetZoom();
 STATE.theme = 'light';
 STATE.darkPaper = false;
 STATE.mobileView = 'canvas'; // 'canvas' | 'controls' | 'export'
-STATE.appMode = 'simple'; // 'simple' | 'advanced'
+STATE.appMode = 'advanced'; // 'simple' | 'advanced'
 
 const SVG_ICONS = {
     check: '<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>',
@@ -150,6 +150,8 @@ const DOM = {
     dorsoImg: document.getElementById('dorso-img'),
     frenteActions: document.getElementById('frente-actions'),
     dorsoActions: document.getElementById('dorso-actions'),
+    frenteActionBar: document.getElementById('frente-action-bar'),
+    dorsoActionBar: document.getElementById('dorso-action-bar'),
     btnCropFrente: document.getElementById('btn-crop-frente'),
     btnRemoveFrente: document.getElementById('btn-remove-frente'),
     btnCropDorso: document.getElementById('btn-crop-dorso'),
@@ -190,9 +192,11 @@ const DOM = {
     filterPresetBtns: document.querySelectorAll('.filter-preset-btn'),
     cardBrightnessRange: document.getElementById('card-brightness-range'),
     cardBrightnessNum: document.getElementById('card-brightness-num'),
+    cardBrightnessVal: document.getElementById('card-brightness-val'),
     btnResetBrightness: document.getElementById('btn-reset-brightness'),
     cardContrastRange: document.getElementById('card-contrast-range'),
     cardContrastNum: document.getElementById('card-contrast-num'),
+    cardContrastVal: document.getElementById('card-contrast-val'),
     btnResetContrast: document.getElementById('btn-reset-contrast'),
     cardRotationLabel: document.getElementById('card-rotation-label'),
     btnRotateActive90: document.getElementById('btn-rotate-active-90'),
@@ -206,6 +210,10 @@ const DOM = {
     defaultConfigBadge: document.getElementById('default-config-badge'),
 
     // Exportación
+    exportStatusFrente: document.getElementById('export-status-frente'),
+    exportStatusDorso: document.getElementById('export-status-dorso'),
+    exportBadgeFrente: document.getElementById('export-badge-frente'),
+    exportBadgeDorso: document.getElementById('export-badge-dorso'),
     exportFormatSelect: document.getElementById('export-format-select'),
     exportDpiSelect: document.getElementById('export-dpi-select'),
     exportDpiWrap: document.getElementById('export-dpi-wrap'),
@@ -240,6 +248,7 @@ const DOM = {
     btnQuickScaleUp: document.getElementById('btn-quick-scale-up'),
     btnQuickRotate: document.getElementById('btn-quick-rotate'),
     btnQuickCrop: document.getElementById('btn-quick-crop'),
+    btnQuickRemove: document.getElementById('btn-quick-remove'),
     btnQuickCenterX: document.getElementById('btn-quick-center-x'),
     btnQuickCenterY: document.getElementById('btn-quick-center-y'),
     btnQuickCenter: document.getElementById('btn-quick-center'),
@@ -257,6 +266,9 @@ const DOM = {
 
     // Modales y Herramientas de Recorte Avanzado
     cropModal: document.getElementById('crop-modal'),
+    cropCardBadge: document.getElementById('crop-card-badge'),
+    btnLoupeCycle: document.getElementById('btn-loupe-cycle'),
+    cropLoupeHeaderLabel: document.getElementById('crop-loupe-header-label'),
     cropCanvas: document.getElementById('crop-canvas'),
     cropLoupe: document.getElementById('crop-loupe'),
     cropLoupeCanvas: document.getElementById('crop-loupe-canvas'),
@@ -742,9 +754,8 @@ function migrateLegacyStorage() {
 }
 
 function initAppMode() {
-    const saved = localStorage.getItem('cardpdf-app-mode');
-    STATE.appMode = saved === 'advanced' ? 'advanced' : 'simple';
-    applyAppMode(STATE.appMode, { persist: false, applyLayout: false });
+    STATE.appMode = 'advanced';
+    document.body.dataset.appMode = 'advanced';
 }
 
 function applyFactoryMetricsKeepImages() {
@@ -1053,15 +1064,27 @@ function setupEventListeners() {
     });
 
     // Pestañas y Controles de Tarjeta
-    DOM.tabBtnFrente.addEventListener('click', () => setActiveTab('frente'));
-    DOM.tabBtnDorso.addEventListener('click', () => setActiveTab('dorso'));
+    if (DOM.tabBtnFrente) DOM.tabBtnFrente.addEventListener('click', () => setActiveTab('frente'));
+    if (DOM.tabBtnDorso) DOM.tabBtnDorso.addEventListener('click', () => setActiveTab('dorso'));
     if (DOM.tabBtnBoth) DOM.tabBtnBoth.addEventListener('click', () => setActiveTab('both'));
-    DOM.btnApplyCr80.addEventListener('click', applyCr80Preset);
-    DOM.btnCopyToOther.addEventListener('click', copyActiveCardSettingsToOther);
+    if (DOM.btnApplyCr80) DOM.btnApplyCr80.addEventListener('click', applyCr80Preset);
+    if (DOM.btnCopyToOther) DOM.btnCopyToOther.addEventListener('click', copyActiveCardSettingsToOther);
 
     setupCardControls();
 
     // Exportación
+    if (DOM.exportStatusFrente) {
+        DOM.exportStatusFrente.addEventListener('click', () => {
+            if (!hasFrenteImage()) openCardFilePicker('frente');
+            else openCropModal('frente');
+        });
+    }
+    if (DOM.exportStatusDorso) {
+        DOM.exportStatusDorso.addEventListener('click', () => {
+            if (!hasDorsoImage()) openCardFilePicker('dorso');
+            else openCropModal('dorso');
+        });
+    }
     DOM.exportFormatSelect.addEventListener('change', (e) => {
         STATE.exportFormat = e.target.value;
         updateExportOptionsUI();
@@ -1165,6 +1188,19 @@ function setupEventListeners() {
             e.stopPropagation();
             const id = STATE.selectedCardId === 'both' ? 'frente' : STATE.selectedCardId;
             if (id) openCropModal(id);
+        });
+    }
+
+    if (DOM.btnQuickRemove) {
+        DOM.btnQuickRemove.addEventListener('click', (e) => {
+            e.stopPropagation();
+            if (STATE.selectedCardId === 'both') {
+                if (hasFrenteImage()) removeCard('frente');
+                if (hasDorsoImage()) removeCard('dorso');
+            } else if (STATE.selectedCardId) {
+                removeCard(STATE.selectedCardId);
+            }
+            deselectCards();
         });
     }
 
@@ -1475,19 +1511,20 @@ function updateDropzoneUI(cardId, src) {
     const imgEl = isFrente ? DOM.frenteImg : DOM.dorsoImg;
     const dropzone = isFrente ? DOM.dropzoneFrente : DOM.dropzoneDorso;
     const actions = isFrente ? DOM.frenteActions : DOM.dorsoActions;
+    const actionBar = isFrente ? DOM.frenteActionBar : DOM.dorsoActionBar;
 
     if (src) {
-        imgEl.src = src;
-        previewWrap.classList.remove('hidden');
-        placeholder.classList.add('hidden');
-        dropzone.classList.add('has-file');
-        actions.style.display = 'flex';
+        if (imgEl) imgEl.src = src;
+        if (previewWrap) previewWrap.classList.remove('hidden');
+        if (placeholder) placeholder.classList.add('hidden');
+        if (dropzone) dropzone.classList.add('has-file');
+        if (actions) actions.style.display = 'grid';
     } else {
-        imgEl.src = '';
-        previewWrap.classList.add('hidden');
-        placeholder.classList.remove('hidden');
-        dropzone.classList.remove('has-file');
-        actions.style.display = 'none';
+        if (imgEl) imgEl.src = '';
+        if (previewWrap) previewWrap.classList.add('hidden');
+        if (placeholder) placeholder.classList.remove('hidden');
+        if (dropzone) dropzone.classList.remove('has-file');
+        if (actions) actions.style.display = 'none';
     }
 
     updateEmptyStateVisibility();
@@ -1719,8 +1756,8 @@ function setActiveTab(cardId) {
     STATE.activeCardId = cardId;
     STATE.selectedCardId = cardId;
 
-    const inactiveClass = 'flex-1 py-1.5 text-xs font-bold rounded-lg text-slate-600 dark:text-slate-400 transition-all';
-    const activeClass = 'flex-1 py-1.5 text-xs font-bold rounded-lg bg-white dark:bg-slate-700 shadow-sm text-blue-600 dark:text-blue-400 transition-all';
+    const inactiveClass = 'flex-1 min-h-[38px] py-2 text-xs font-bold rounded-lg text-slate-600 dark:text-slate-400 transition-all';
+    const activeClass = 'flex-1 min-h-[38px] py-2 text-xs font-bold rounded-lg bg-white dark:bg-slate-700 shadow-sm text-blue-600 dark:text-blue-400 transition-all';
 
     if (DOM.tabBtnFrente) DOM.tabBtnFrente.className = (cardId === 'frente') ? activeClass : inactiveClass;
     if (DOM.tabBtnDorso) DOM.tabBtnDorso.className = (cardId === 'dorso') ? activeClass : inactiveClass;
@@ -1758,25 +1795,27 @@ function syncControlsFromActiveCard() {
     const isBoth = (STATE.activeCardId === 'both' || STATE.selectedCardId === 'both');
     const card = (STATE.activeCardId === 'dorso' && !isBoth) ? STATE.cards.dorso : STATE.cards.frente;
 
-    DOM.cardScaleRange.value = card.scale;
-    DOM.cardScaleNum.value = card.scale;
-    DOM.cardXRange.value = card.xMm;
-    DOM.cardXNum.value = card.xMm;
-    DOM.cardYRange.value = card.yMm;
-    DOM.cardYNum.value = card.yMm;
-    DOM.cardRadiusRange.value = card.borderRadiusMm;
+    if (DOM.cardScaleRange) DOM.cardScaleRange.value = card.scale;
+    if (DOM.cardScaleNum) DOM.cardScaleNum.value = card.scale;
+    if (DOM.cardXRange) DOM.cardXRange.value = card.xMm;
+    if (DOM.cardXNum) DOM.cardXNum.value = card.xMm;
+    if (DOM.cardYRange) DOM.cardYRange.value = card.yMm;
+    if (DOM.cardYNum) DOM.cardYNum.value = card.yMm;
+    if (DOM.cardRadiusRange) DOM.cardRadiusRange.value = card.borderRadiusMm;
     if (DOM.cardRadiusNum) DOM.cardRadiusNum.value = card.borderRadiusMm;
-    DOM.cardBrightnessRange.value = card.brightness;
+    if (DOM.cardBrightnessRange) DOM.cardBrightnessRange.value = card.brightness;
     if (DOM.cardBrightnessNum) DOM.cardBrightnessNum.value = card.brightness;
-    DOM.cardContrastRange.value = card.contrast;
+    if (DOM.cardBrightnessVal) DOM.cardBrightnessVal.textContent = card.brightness > 0 ? `+${card.brightness}` : `${card.brightness}`;
+    if (DOM.cardContrastRange) DOM.cardContrastRange.value = card.contrast;
     if (DOM.cardContrastNum) DOM.cardContrastNum.value = card.contrast;
+    if (DOM.cardContrastVal) DOM.cardContrastVal.textContent = card.contrast > 0 ? `+${card.contrast}` : `${card.contrast}`;
     if (DOM.cardRotationLabel) DOM.cardRotationLabel.textContent = `${card.rotation || 0}°`;
 
     const currentW = (card.widthMm * card.scale / 100).toFixed(1);
     const currentH = (card.heightMm * card.scale / 100).toFixed(1);
-    DOM.activeCardDimensions.textContent = isBoth 
-        ? `(Ambos: ~${currentW} × ${currentH} mm)` 
-        : `(${currentW} × ${currentH} mm)`;
+    if (DOM.activeCardDimensions) {
+        DOM.activeCardDimensions.textContent = `${currentW} × ${currentH} mm`;
+    }
 
     DOM.filterPresetBtns.forEach(btn => {
         let targetFilter = card.filter;
@@ -1784,9 +1823,9 @@ function syncControlsFromActiveCard() {
         if (targetFilter === 'bw') targetFilter = 'photocopy';
 
         if (btn.dataset.filter === targetFilter) {
-            btn.className = 'filter-preset-btn min-h-[32px] py-1 px-1 text-[11px] font-bold rounded-lg bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 border border-blue-200 dark:border-blue-800 flex flex-col items-center justify-center gap-0.5 transition-all shadow-sm';
+            btn.className = 'filter-preset-btn min-h-[46px] py-2 px-1 text-xs font-bold rounded-xl bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 border border-blue-200 dark:border-blue-800 flex flex-col items-center justify-center gap-0.5 transition-all shadow-sm';
         } else {
-            btn.className = 'filter-preset-btn min-h-[32px] py-1 px-1 text-[11px] font-bold rounded-lg bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-700 flex flex-col items-center justify-center gap-0.5 transition-all';
+            btn.className = 'filter-preset-btn min-h-[46px] py-2 px-1 text-xs font-bold rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-700 flex flex-col items-center justify-center gap-0.5 transition-all';
         }
     });
     updateCopyButtonVisibility();
@@ -1917,24 +1956,24 @@ function setupCardControls() {
         scheduleRender();
     };
 
-    DOM.cardScaleRange.addEventListener('input', (e) => onScaleChange(parseFloat(e.target.value)));
-    DOM.cardScaleNum.addEventListener('input', (e) => onScaleChange(Math.min(180, Math.max(30, parseFloat(e.target.value) || 70))));
+    if (DOM.cardScaleRange) DOM.cardScaleRange.addEventListener('input', (e) => onScaleChange(parseFloat(e.target.value)));
+    if (DOM.cardScaleNum) DOM.cardScaleNum.addEventListener('input', (e) => onScaleChange(Math.min(180, Math.max(30, parseFloat(e.target.value) || 70))));
 
     // Posición X
     const onXChange = (val) => {
         applyToActiveCards((c) => { c.xMm = val; });
         scheduleRender();
     };
-    DOM.cardXRange.addEventListener('input', (e) => onXChange(parseFloat(e.target.value)));
-    DOM.cardXNum.addEventListener('input', (e) => onXChange(parseFloat(e.target.value) || 0));
+    if (DOM.cardXRange) DOM.cardXRange.addEventListener('input', (e) => onXChange(parseFloat(e.target.value)));
+    if (DOM.cardXNum) DOM.cardXNum.addEventListener('input', (e) => onXChange(parseFloat(e.target.value) || 0));
 
     // Posición Y
     const onYChange = (val) => {
         applyToActiveCards((c) => { c.yMm = val; });
         scheduleRender();
     };
-    DOM.cardYRange.addEventListener('input', (e) => onYChange(parseFloat(e.target.value)));
-    DOM.cardYNum.addEventListener('input', (e) => onYChange(parseFloat(e.target.value) || 0));
+    if (DOM.cardYRange) DOM.cardYRange.addEventListener('input', (e) => onYChange(parseFloat(e.target.value)));
+    if (DOM.cardYNum) DOM.cardYNum.addEventListener('input', (e) => onYChange(parseFloat(e.target.value) || 0));
 
     // Alineaciones
     if (DOM.btnAlignCenterBoth) {
@@ -2012,15 +2051,18 @@ function setupCardControls() {
     });
 
     // Brillo con Input Numérico y Reset
-    DOM.cardBrightnessRange.addEventListener('input', (e) => {
-        const val = parseInt(e.target.value, 10);
-        applyToActiveCards((c) => {
-            c.brightness = val;
-            c.dirty = true;
-        }, { mirror: true });
-        if (DOM.cardBrightnessNum) DOM.cardBrightnessNum.value = val;
-        scheduleRender();
-    });
+    if (DOM.cardBrightnessRange) {
+        DOM.cardBrightnessRange.addEventListener('input', (e) => {
+            const val = parseInt(e.target.value, 10);
+            applyToActiveCards((c) => {
+                c.brightness = val;
+                c.dirty = true;
+            }, { mirror: true });
+            if (DOM.cardBrightnessNum) DOM.cardBrightnessNum.value = val;
+            if (DOM.cardBrightnessVal) DOM.cardBrightnessVal.textContent = val > 0 ? `+${val}` : `${val}`;
+            scheduleRender();
+        });
+    }
 
     if (DOM.cardBrightnessNum) {
         DOM.cardBrightnessNum.addEventListener('input', (e) => {
@@ -2029,7 +2071,8 @@ function setupCardControls() {
                 c.brightness = val;
                 c.dirty = true;
             }, { mirror: true });
-            DOM.cardBrightnessRange.value = val;
+            if (DOM.cardBrightnessRange) DOM.cardBrightnessRange.value = val;
+            if (DOM.cardBrightnessVal) DOM.cardBrightnessVal.textContent = val > 0 ? `+${val}` : `${val}`;
             scheduleRender();
         });
     }
@@ -2046,15 +2089,18 @@ function setupCardControls() {
     }
 
     // Contraste con Input Numérico y Reset
-    DOM.cardContrastRange.addEventListener('input', (e) => {
-        const val = parseInt(e.target.value, 10);
-        applyToActiveCards((c) => {
-            c.contrast = val;
-            c.dirty = true;
-        }, { mirror: true });
-        if (DOM.cardContrastNum) DOM.cardContrastNum.value = val;
-        scheduleRender();
-    });
+    if (DOM.cardContrastRange) {
+        DOM.cardContrastRange.addEventListener('input', (e) => {
+            const val = parseInt(e.target.value, 10);
+            applyToActiveCards((c) => {
+                c.contrast = val;
+                c.dirty = true;
+            }, { mirror: true });
+            if (DOM.cardContrastNum) DOM.cardContrastNum.value = val;
+            if (DOM.cardContrastVal) DOM.cardContrastVal.textContent = val > 0 ? `+${val}` : `${val}`;
+            scheduleRender();
+        });
+    }
 
     if (DOM.cardContrastNum) {
         DOM.cardContrastNum.addEventListener('input', (e) => {
@@ -2063,7 +2109,8 @@ function setupCardControls() {
                 c.contrast = val;
                 c.dirty = true;
             }, { mirror: true });
-            DOM.cardContrastRange.value = val;
+            if (DOM.cardContrastRange) DOM.cardContrastRange.value = val;
+            if (DOM.cardContrastVal) DOM.cardContrastVal.textContent = val > 0 ? `+${val}` : `${val}`;
             scheduleRender();
         });
     }
@@ -2120,12 +2167,15 @@ function setOrientation(orientation) {
     if (STATE.paper.orientation === orientation) return;
     STATE.paper.orientation = orientation;
 
+    const activeBtnClass = 'min-h-[34px] py-1.5 text-xs font-bold rounded-lg bg-white dark:bg-slate-700 shadow-sm text-blue-600 dark:text-blue-300 transition-all';
+    const inactiveBtnClass = 'min-h-[34px] py-1.5 text-xs font-bold rounded-lg text-slate-600 dark:text-slate-400 transition-all';
+
     if (orientation === 'portrait') {
-        DOM.btnOrientPortrait.className = 'py-0.5 text-xs font-semibold rounded bg-white dark:bg-slate-700 shadow-sm text-blue-600 dark:text-blue-300';
-        DOM.btnOrientLandscape.className = 'py-0.5 text-xs font-semibold rounded text-slate-600 dark:text-slate-400';
+        if (DOM.btnOrientPortrait) DOM.btnOrientPortrait.className = activeBtnClass;
+        if (DOM.btnOrientLandscape) DOM.btnOrientLandscape.className = inactiveBtnClass;
     } else {
-        DOM.btnOrientLandscape.className = 'py-0.5 text-xs font-semibold rounded bg-white dark:bg-slate-700 shadow-sm text-blue-600 dark:text-blue-300';
-        DOM.btnOrientPortrait.className = 'py-0.5 text-xs font-semibold rounded text-slate-600 dark:text-slate-400';
+        if (DOM.btnOrientLandscape) DOM.btnOrientLandscape.className = activeBtnClass;
+        if (DOM.btnOrientPortrait) DOM.btnOrientPortrait.className = inactiveBtnClass;
     }
 
     setupPaperDimensions();
@@ -2437,35 +2487,34 @@ function resizeCanvasViewport() {
     // abierta. La hoja quedaba en el 40-60% del hueco en un iPhone chico, y
     // el zoom de arranque al 85% lo tapaba solo para un tamano de pantalla.
     const box = measureEl.getBoundingClientRect();
+    const stage = document.getElementById('viewport-stage');
     if (isMobile && box.height > 50) {
-        const stage = document.getElementById('viewport-stage');
-        const cs = stage ? getComputedStyle(stage) : null;
-        const boxTop = box.top + (cs ? parseFloat(cs.paddingTop) || 0 : 0);
-        const boxBottom = box.bottom - (cs ? parseFloat(cs.paddingBottom) || 0 : 0);
-
-        let topLimit = boxTop;
-        let bottomLimit = boxBottom;
+        let topLimit = box.top;
+        let bottomLimit = box.bottom;
         if (toolbar && getComputedStyle(toolbar).display !== 'none') {
             topLimit = Math.max(topLimit, toolbar.getBoundingClientRect().bottom);
         }
         if (footerVisible) {
             bottomLimit = Math.min(bottomLimit, footer.getBoundingClientRect().top);
         }
-        // La reserva de CSS para la barra rapida es fija (132px) pero la barra
-        // mide lo que midan sus botones: se usa su borde real.
         const quickBar = DOM.canvasQuickBar;
         if (quickBar && document.body.classList.contains('quick-bar-open')
             && getComputedStyle(quickBar).display !== 'none') {
             bottomLimit = Math.min(bottomLimit, quickBar.getBoundingClientRect().top);
         }
 
-        // La hoja va centrada en la caja del stage: cabe lo que permita el
-        // lado mas estrecho respecto al centro, no la suma de los dos.
-        const center = (boxTop + boxBottom) / 2;
-        const halfFree = Math.min(center - topLimit, bottomLimit - center);
-        const margin = 12;
+        const padTop = Math.max(8, Math.round(topLimit - box.top + 8));
+        const padBottom = Math.max(8, Math.round(box.bottom - bottomLimit + 8));
+        if (stage) {
+            stage.style.paddingTop = `${padTop}px`;
+            stage.style.paddingBottom = `${padBottom}px`;
+        }
+        const margin = 10;
         availWidth = Math.max(80, cWidth - 2 * margin);
-        availHeight = Math.max(100, 2 * halfFree - 2 * margin);
+        availHeight = Math.max(100, bottomLimit - topLimit - 16);
+    } else if (stage) {
+        stage.style.paddingTop = `${toolbarH + 14}px`;
+        stage.style.paddingBottom = `${footerH + 14}px`;
     }
 
     const sheetAspect = STATE.paper.heightMm / STATE.paper.widthMm;
@@ -2991,7 +3040,9 @@ function drawBlueprintPlaceholders(ctx, placeholders, mmToPx) {
 }
 
 function updateEmptyStateVisibility() {
-    const hasAnyImage = !!(STATE.cards.frente.rawImage || STATE.cards.dorso.rawImage);
+    const fReady = !!(STATE.cards.frente.rawImage || STATE.cards.frente.croppedCanvas);
+    const dReady = !!(STATE.cards.dorso.rawImage || STATE.cards.dorso.croppedCanvas);
+    const hasAnyImage = fReady || dReady;
     if (DOM.emptyState) {
         if (hasAnyImage) {
             DOM.emptyState.classList.add('hidden');
@@ -3002,6 +3053,20 @@ function updateEmptyStateVisibility() {
     if (DOM.btnGenerateDownload) {
         DOM.btnGenerateDownload.disabled = !hasAnyImage;
     }
+    const updateExportSidePill = (btn, badge, ready) => {
+        if (!btn || !badge) return;
+        if (ready) {
+            btn.className = 'min-h-[40px] px-2.5 py-1.5 rounded-xl border border-emerald-200 dark:border-emerald-800/80 bg-emerald-50/70 dark:bg-emerald-950/35 flex items-center justify-between text-xs font-bold text-emerald-700 dark:text-emerald-300 transition-colors';
+            badge.textContent = t('cardReady');
+            badge.className = 'text-[11px] font-bold text-emerald-600 dark:text-emerald-400';
+        } else {
+            btn.className = 'min-h-[40px] px-2.5 py-1.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-900/50 flex items-center justify-between text-xs font-bold text-slate-600 dark:text-slate-300 hover:border-blue-400 transition-colors';
+            badge.textContent = t('tapToLoad');
+            badge.className = 'text-[11px] font-semibold text-blue-600 dark:text-blue-400';
+        }
+    };
+    updateExportSidePill(DOM.exportStatusFrente, DOM.exportBadgeFrente, fReady);
+    updateExportSidePill(DOM.exportStatusDorso, DOM.exportBadgeDorso, dReady);
 }
 
 // =============================================================================
@@ -3627,6 +3692,7 @@ function setLoupeZoom(zoom) {
     cropState.loupeZoom = zoom;
     const badge = DOM.cropLoupeBadge || document.getElementById('crop-loupe-badge');
     if (badge) badge.textContent = `${zoom}X`;
+    if (DOM.cropLoupeHeaderLabel) DOM.cropLoupeHeaderLabel.textContent = `${zoom}X`;
 
     const zBtns = [
         { el: DOM.btnLoupeZoom1, val: 1.0 },
@@ -3645,8 +3711,8 @@ function setLoupeZoom(zoom) {
 }
 
 function cycleLoupeZoom() {
-    const cur = cropState.loupeZoom || 1.0;
-    let next = 1.0;
+    const cur = cropState.loupeZoom || 1.5;
+    let next = 1.5;
     if (cur < 1.2) next = 1.5;
     else if (cur < 1.8) next = 2.0;
     else if (cur < 2.5) next = 3.0;
@@ -3667,7 +3733,11 @@ function openCropModal(cardId, options = {}) {
     cropState.fineAngle = card.cropFineAngle || 0;
     cropState.rotation90 = card.cropRotation90 || 0;
     cropState.showGrid = false;
-    setLoupeZoom(1.0); // 1X POR DEFECTO
+    setLoupeZoom(1.5);
+
+    if (DOM.cropCardBadge) {
+        DOM.cropCardBadge.textContent = cardId === 'dorso' ? t('back') : t('front');
+    }
 
     if (DOM.cropAngleSlider) DOM.cropAngleSlider.value = cropState.fineAngle;
     if (DOM.cropAngleLabel) DOM.cropAngleLabel.textContent = `${cropState.fineAngle >= 0 ? '+' : ''}${cropState.fineAngle.toFixed(1)}°`;
@@ -3695,6 +3765,7 @@ function openCropModal(cardId, options = {}) {
 
     const startMode = options.defaultMode || 'quad';
     setCropMode(startMode);
+    requestAnimationFrame(() => drawCropCanvas());
 }
 
 function setCropMode(mode) {
@@ -4021,14 +4092,16 @@ function drawCropCanvas() {
         ctx.setLineDash([]);
         ctx.restore();
 
-        // 4 Tiradores grandes de esquina numerados
+        // 4 Tiradores grandes de esquina numerados (escalados a píxeles de pantalla para tacto cómodo)
         const qCorners = [
             { name: 'tl', label: '1', pt: qp.tl },
             { name: 'tr', label: '2', pt: qp.tr },
             { name: 'br', label: '3', pt: qp.br },
             { name: 'bl', label: '4', pt: qp.bl }
         ];
-        const qHandleR = Math.max(12, Math.round(canvas.width * 0.016));
+        const rect = canvas.getBoundingClientRect();
+        const screenScale = rect.width > 20 ? (canvas.width / rect.width) : Math.max(1, canvas.width / 360);
+        const qHandleR = Math.max(14, Math.round(16 * screenScale));
 
         qCorners.forEach(c => {
             ctx.beginPath();
@@ -5254,8 +5327,9 @@ function applyCroppedResult() {
 }
 
 // Eventos del modal de recorte interactivo
-DOM.btnCloseCrop.addEventListener('click', () => { DOM.cropModal.classList.add('hidden'); hideCropLoupe(); });
-DOM.btnCancelCrop.addEventListener('click', () => { DOM.cropModal.classList.add('hidden'); hideCropLoupe(); });
+if (DOM.btnCloseCrop) DOM.btnCloseCrop.addEventListener('click', () => { DOM.cropModal.classList.add('hidden'); hideCropLoupe(); });
+if (DOM.btnCancelCrop) DOM.btnCancelCrop.addEventListener('click', () => { DOM.cropModal.classList.add('hidden'); hideCropLoupe(); });
+if (DOM.btnLoupeCycle) DOM.btnLoupeCycle.addEventListener('click', () => cycleLoupeZoom());
 
 if (DOM.btnCropTabQuad) DOM.btnCropTabQuad.addEventListener('click', () => setCropMode('quad'));
 if (DOM.btnCropTabRotate) DOM.btnCropTabRotate.addEventListener('click', () => setCropMode('straighten'));
